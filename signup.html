@@ -2,42 +2,19 @@
 <html>
 <head>
   <title>Sign Up</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="auth-container">
-    <h2>Sign Up</h2>
-    <input type="text" id="signup-username" placeholder="Username">
-    <input type="email" id="signup-email" placeholder="Email">
-    <input type="password" id="signup-password" placeholder="Password">
-    <button onclick="signUp()">Sign Up</button>
+  <div class="login-box">
+    <h2>Create Account</h2>
+    <input type="text" id="signup-username" placeholder="Username" />
+    <input type="email" id="signup-email" placeholder="Email" />
+    <input type="password" id="signup-password" placeholder="Password" />
+    <button onclick="signup()">Sign Up</button>
     <p>Already have an account? <a href="login.html">Login</a></p>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
-  <script src="firebase.js"></script>
-  <script>
-    function signUp() {
-      const email = document.getElementById('signup-email').value;
-      const password = document.getElementById('signup-password').value;
-      const username = document.getElementById('signup-username').value;
-
-      auth.createUserWithEmailAndPassword(email, password)
-        .then((userCred) => {
-          const user = userCred.user;
-          return db.collection('users').doc(user.uid).set({
-            email,
-            username
-          });
-        })
-        .then(() => {
-          alert("Account created!");
-          window.location.href = "index.html";
-        })
-        .catch((error) => alert(error.message));
-    }
-  </script>
+  <script type="module" src="firebase.js"></script>
+  <script type="module" src="signup.js"></script>
 </body>
 </html>
