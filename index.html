@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Facebook Chat Clone</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -17,60 +18,7 @@
     </div>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
-  <script src="firebase.js"></script>
-  <script>
-    let currentUser = null;
-
-    // Auth state
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        currentUser = user;
-        const doc = await db.collection("users").doc(user.uid).get();
-        const data = doc.data();
-        document.getElementById("username").innerText = data?.username || "Anonymous";
-
-        loadMessages();
-      } else {
-        window.location.href = "login.html";
-      }
-    });
-
-    function logout() {
-      auth.signOut().then(() => window.location.href = "login.html");
-    }
-
-    function sendMessage() {
-      const message = document.getElementById("message").value;
-      if (message.trim() === "") return;
-
-      db.collection("messages").add({
-        uid: currentUser.uid,
-        username: document.getElementById("username").innerText,
-        text: message,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-
-      document.getElementById("message").value = "";
-    }
-
-    function loadMessages() {
-      db.collection("messages").orderBy("createdAt")
-        .onSnapshot(snapshot => {
-          const chatBox = document.getElementById("chat-box");
-          chatBox.innerHTML = "";
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            const div = document.createElement("div");
-            div.className = "chat-message";
-            div.innerHTML = `<strong>${data.username}:</strong> ${data.text}`;
-            chatBox.appendChild(div);
-          });
-          chatBox.scrollTop = chatBox.scrollHeight;
-        });
-    }
-  </script>
+  <!-- Use a JS module -->
+  <script type="module" src="main.js"></script>
 </body>
 </html>
