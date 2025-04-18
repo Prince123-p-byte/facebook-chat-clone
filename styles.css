@@ -391,3 +391,51 @@
       border-radius: 0 0 10px 10px;
     }
   }
+  .message {
+    max-width: 80%;
+    margin: 8px;
+    padding: 10px 15px;
+    border-radius: 18px;
+  }
+  
+  .message.sent {
+    align-self: flex-end;
+    background-color: #0084ff;
+    color: white;
+  }
+  
+  .message.received {
+    align-self: flex-start;
+    background-color: #e4e6eb;
+    color: black;
+  }
+  
+  .message-time {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    display: block;
+    margin-top: 4px;
+  }
+  
+  .message-actions {
+    display: none;
+    gap: 5px;
+    margin-top: 5px;
+  }
+  
+  .message:hover .message-actions {
+    display: flex;
+  }
+  
+  .btn-icon {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+  }
+  
+  .editing-indicator {
+    color: #666;
+    font-size: 0.8rem;
+    padding: 5px 10px;
+  }
