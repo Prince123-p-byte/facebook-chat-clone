@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <button class="back-button" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
+      <div class="chat-header-info">
+        <img id="chat-partner-avatar" src="https://via.placeholder.com/40" alt="User">
+        <h2 id="chat-partner-name"></h2>
+      </div>
+      <div class="chat-actions">
+        <button onclick="showChatOptions()"><i class="fas fa-ellipsis-v"></i></button>
+      </div>
+    </header>
+    
+    <div class="chat-container" id="chat-container">
+      <!-- Messages will be loaded here -->
+    </div>
+    
+    <div class="message-input-container">
+      <button onclick="showMediaOptions()"><i class="fas fa-plus"></i></button>
+      <input type="text" id="message-input" placeholder="Type a message...">
+      <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+    
+    <div id="media-options" class="media-options">
+      <button onclick="openImageUpload()"><i class="fas fa-image"></i> Photo</button>
+      <button onclick="openFileUpload()"><i class="fas fa-file"></i> Document</button>
+    </div>
+    
+    <input type="file" id="media-upload" accept="image/*, .pdf, .doc, .docx" style="display: none;">
+  </div>
+  
+  <script type="module" src="chat.js"></script>
+</body>
+</html>

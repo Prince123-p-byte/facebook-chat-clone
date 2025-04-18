@@ -1,19 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Chat Room</title>
+  <title>Chat App - Contacts</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <div class="chat-app">
-    <h2>Welcome, <span id="username">Loading...</span> 👋</h2>
-    <button onclick="logout()">Logout</button>
-    <div class="chat-box" id="chat-box"></div>
-    <div class="message-input">
-      <input type="text" id="message" placeholder="Type a message..." />
-      <button onclick="sendMessage()">Send</button>
+  <div class="app-container">
+    <header>
+      <h1>Chat App</h1>
+      <div class="user-controls">
+        <span id="current-user"></span>
+        <button onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </header>
+    
+    <div class="search-container">
+      <input type="text" id="search-contacts" placeholder="Search contacts...">
+    </div>
+    
+    <div class="contacts-list" id="contacts-list">
+      <!-- Contacts will be loaded here -->
+    </div>
+    
+    <div class="new-chat-button">
+      <button onclick="showNewChatModal()"><i class="fas fa-plus"></i> New Chat</button>
     </div>
   </div>
+  
+  <!-- New Chat Modal -->
+  <div id="new-chat-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal" onclick="hideModal('new-chat-modal')">&times;</span>
+      <h2>Start New Chat</h2>
+      <div id="available-users"></div>
+    </div>
+  </div>
+  
   <script type="module" src="main.js"></script>
 </body>
 </html>
