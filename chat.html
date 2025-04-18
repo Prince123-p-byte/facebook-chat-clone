@@ -1,41 +1,104 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Chat</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat App</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <div class="app-container">
-    <header>
-      <button class="back-button" onclick="window.history.back()"><i class="fas fa-arrow-left"></i></button>
-      <div class="chat-header-info">
-        <img id="chat-partner-avatar" src="https://via.placeholder.com/40" alt="User">
-        <h2 id="chat-partner-name"></h2>
+  <div class="chat-app-container">
+    <!-- Chat Header -->
+    <header class="chat-header">
+      <button class="back-button" onclick="goBack()">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      
+      <div class="chat-partner-info">
+        <img id="chat-partner-avatar" src="https://ui-avatars.com/api/?name=User&background=random" alt="Profile">
+        <div>
+          <h2 id="chat-partner-name">Loading...</h2>
+          <p class="online-status">Online</p>
+        </div>
       </div>
+      
       <div class="chat-actions">
-        <button onclick="showChatOptions()"><i class="fas fa-ellipsis-v"></i></button>
+        <button class="btn-icon" onclick="showChatOptions()">
+          <i class="fas fa-ellipsis-v"></i>
+        </button>
       </div>
     </header>
     
-    <div class="chat-container" id="chat-container">
-      <!-- Messages will be loaded here -->
-    </div>
+    <!-- Chat Container -->
+    <main class="chat-main">
+      <div id="chat-container" class="chat-messages-container">
+        <!-- Messages will be loaded here dynamically -->
+        <div class="loading-messages">Loading messages...</div>
+      </div>
+    </main>
     
-    <div class="message-input-container">
-      <button onclick="showMediaOptions()"><i class="fas fa-plus"></i></button>
-      <input type="text" id="message-input" placeholder="Type a message...">
-      <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
-    </div>
+    <!-- Message Input Area -->
+    <footer class="chat-footer">
+      <div class="message-input-container">
+        <button class="btn-icon emoji-btn" onclick="toggleEmojiPicker()">
+          <i class="far fa-smile"></i>
+        </button>
+        
+        <div class="message-input-wrapper">
+          <input 
+            type="text" 
+            id="message-input" 
+            placeholder="Type a message..." 
+            autocomplete="off"
+          >
+          <div class="editing-indicator" style="display: none;">
+            <i class="fas fa-pencil-alt"></i> Editing message...
+          </div>
+        </div>
+        
+        <div class="send-button-container">
+          <button class="btn-icon send-btn" onclick="sendMessage()">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
+    </footer>
     
-    <div id="media-options" class="media-options">
-      <button onclick="openImageUpload()"><i class="fas fa-image"></i> Photo</button>
-      <button onclick="openFileUpload()"><i class="fas fa-file"></i> Document</button>
+    <!-- Chat Options Menu (hidden by default) -->
+    <div id="chat-options-menu" class="options-menu">
+      <button onclick="clearChatHistory()">
+        <i class="fas fa-trash"></i> Clear History
+      </button>
+      <button onclick="muteChat()">
+        <i class="fas fa-bell-slash"></i> Mute Notifications
+      </button>
     </div>
-    
-    <input type="file" id="media-upload" accept="image/*, .pdf, .doc, .docx" style="display: none;">
   </div>
-  
+
   <script type="module" src="chat.js"></script>
+  
+  <script>
+    // Helper functions for UI elements
+    function showChatOptions() {
+      const menu = document.getElementById('chat-options-menu');
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+    
+    function toggleEmojiPicker() {
+      alert("Emoji picker would appear here in a full implementation");
+      // In a real app, you would integrate an emoji picker library
+    }
+    
+    function clearChatHistory() {
+      if (confirm("Are you sure you want to clear all chat history?")) {
+        alert("This would clear history in a full implementation");
+      }
+    }
+    
+    function muteChat() {
+      alert("Chat notifications would be muted here");
+    }
+  </script>
 </body>
 </html>

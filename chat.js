@@ -6,7 +6,7 @@ import {
 import { 
   collection, query, where, orderBy, onSnapshot,
   addDoc, serverTimestamp, doc, getDoc, updateDoc,
-  arrayUnion, arrayRemove, deleteField
+  getDocs, deleteField
 } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
 // Global variables
@@ -37,15 +37,17 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initializeChat() {
   try {
     // Get partner info
-    const partnerDoc = await getDoc(doc(db, "users", partnerId));
-    if (!partnerDoc.exists()) {
+    const partnerRef = doc(db, "users", partnerId);
+    const partnerSnap = await getDoc(partnerRef);
+    if (!partnerSnap.exists()) {
       throw new Error("User not found");
     }
     
-    chatPartner = partnerDoc.data();
-    document.getElementById('chat-partner-name').textContent = chatPartner.displayName || chatPartner.email;
+    chatPartner = partnerSnap.data();
+    document.getElementById('chat-partner-name').textContent = 
+      chatPartner.displayName || chatPartner.email.split('@')[0];
     
-    // Find existing chat or create new one
+    // Find existing chat between users
     const chatsQuery = query(
       collection(db, "chats"),
       where("participants", "array-contains", currentUser.uid)
@@ -62,6 +64,7 @@ async function initializeChat() {
       }
     });
     
+    // Create new chat if none exists
     if (!chatExists) {
       const newChat = {
         participants: [currentUser.uid, partnerId],
@@ -79,7 +82,7 @@ async function initializeChat() {
   }
 }
 
-// Load and display messages
+// Load and display messages in real-time
 function loadMessages() {
   const messagesContainer = document.getElementById('chat-container');
   messagesContainer.innerHTML = '<div class="loading">Loading messages...</div>';
@@ -94,17 +97,17 @@ function loadMessages() {
     
     snapshot.forEach((doc) => {
       const message = doc.data();
-      if (!message.deleted) { // Skip deleted messages
+      if (!message.deleted) {
         displayMessage(message);
       }
     });
     
-    // Scroll to bottom
+    // Scroll to latest message
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   });
 }
 
-// Display a message in the chat
+// Display a message in the chat UI
 function displayMessage(message) {
   const messagesContainer = document.getElementById('chat-container');
   const isCurrentUser = message.senderId === currentUser.uid;
@@ -151,7 +154,7 @@ function displayMessage(message) {
   messagesContainer.appendChild(messageElement);
 }
 
-// Send a new text message
+// Send a new message
 window.sendMessage = async function() {
   const input = document.getElementById('message-input');
   const content = input.value.trim();
@@ -217,13 +220,11 @@ window.startEditingMessage = function(messageId, currentContent) {
   input.value = currentContent;
   input.focus();
   
-  // Add editing indicator
-  if (!document.querySelector('.editing-indicator')) {
-    const indicator = document.createElement('div');
-    indicator.className = 'editing-indicator';
-    indicator.textContent = 'Editing message...';
-    document.querySelector('.message-input-container').prepend(indicator);
-  }
+  // Show editing indicator
+  const indicator = document.createElement('div');
+  indicator.className = 'editing-indicator';
+  indicator.innerHTML = '<i class="fas fa-pencil-alt"></i> Editing message...';
+  document.querySelector('.message-input-container').prepend(indicator);
 };
 
 // Setup event listeners
@@ -268,4 +269,14 @@ function escapeHtml(unsafe) {
 // Back to contacts list
 window.goBack = function() {
   window.location.href = 'index.html';
+};
+
+// Logout function
+window.logout = function() {
+  signOut(auth).then(() => {
+    window.location.href = 'login.html';
+  }).catch((error) => {
+    console.error("Logout error:", error);
+    alert("Failed to logout: " + error.message);
+  });
 };
