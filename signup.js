@@ -1,24 +1,35 @@
 // signup.js
-import { auth, db } from './firebase.js';
-import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
-import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 
-window.signup = async function () {
-  const email = document.getElementById("signup-email").value;
-  const password = document.getElementById("signup-password").value;
-  const username = document.getElementById("signup-username").value;
+const auth = getAuth();
 
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+function signup() {
+  const email = document.getElementById('signup-email').value;
+  const password = document.getElementById('signup-password').value;
 
-    await setDoc(doc(db, "users", user.uid), {
-      email,
-      username
-    });
-
-    window.location.href = "index.html";
-  } catch (error) {
-    alert(error.message);
+  // Validate email and password
+  if (!email || !password) {
+    alert("Please fill in both email and password.");
+    return;
   }
-};
+
+  if (password.length < 6) {
+    alert("Password should be at least 6 characters.");
+    return;
+  }
+
+  // Sign up with Firebase Authentication
+  createUserWithEmailAndPassword(auth, email, password)
+    .then((userCredential) => {
+      // Signed up successfully
+      const user = userCredential.user;
+      console.log("User created:", user);
+      window.location.href = "chat.html"; // Redirect to chat page
+    })
+    .catch((error) => {
+      const errorCode = error.code;
+      const errorMessage = error.message;
+      console.error("Error creating user:", errorCode, errorMessage);
+      alert("Error: " + errorMessage);
+    });
+}
