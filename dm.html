@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Facebook Chat Clone</title>
+  <title>DM with User</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="chat-app">
-    <h2>Welcome, <span id="username">Loading...</span> 👋</h2>
+    <h2>Chat with <span id="chat-username">Loading...</span></h2>
     <button onclick="logout()">Logout</button>
 
     <div class="chat-box" id="chat-box"></div>
@@ -22,19 +22,20 @@
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
   <script src="firebase.js"></script>
   <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const receiverId = urlParams.get("id");
+    const receiverName = decodeURIComponent(urlParams.get("name"));
+
+    document.getElementById("chat-username").innerText = receiverName;
+
     let currentUser = null;
 
-    // Auth state
     auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        currentUser = user;
-        const doc = await db.collection("users").doc(user.uid).get();
-        const data = doc.data();
-        document.getElementById("username").innerText = data?.username || "Anonymous";
-
-        loadMessages();
-      } else {
+      if (!user) {
         window.location.href = "login.html";
+      } else {
+        currentUser = user;
+        loadMessages();
       }
     });
 
@@ -47,27 +48,32 @@
       if (message.trim() === "") return;
 
       db.collection("messages").add({
-        uid: currentUser.uid,
-        username: document.getElementById("username").innerText,
+        senderId: currentUser.uid,
+        receiverId: receiverId,
         text: message,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
 
       document.getElementById("message").value = "";
     }
 
     function loadMessages() {
-      db.collection("messages").orderBy("createdAt")
-        .onSnapshot(snapshot => {
+      db.collection("messages")
+        .where("senderId", "in", [currentUser.uid, receiverId])
+        .where("receiverId", "in", [currentUser.uid, receiverId])
+        .orderBy("createdAt")
+        .onSnapshot((snapshot) => {
           const chatBox = document.getElementById("chat-box");
           chatBox.innerHTML = "";
-          snapshot.forEach(doc => {
+
+          snapshot.forEach((doc) => {
             const data = doc.data();
-            const div = document.createElement("div");
-            div.className = "chat-message";
-            div.innerHTML = `<strong>${data.username}:</strong> ${data.text}`;
-            chatBox.appendChild(div);
+            const messageDiv = document.createElement("div");
+            messageDiv.className = "chat-message";
+            messageDiv.innerHTML = `<strong>${data.senderId === currentUser.uid ? "You" : receiverName}:</strong> ${data.text}`;
+            chatBox.appendChild(messageDiv);
           });
+
           chatBox.scrollTop = chatBox.scrollHeight;
         });
     }
