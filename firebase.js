@@ -3,6 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebas
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
+// Your Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDUK0HY6MAFMh_4QoinLFjyc91p2Ds65XA",
   authDomain: "sharepostapp-b04c4.firebaseapp.com",
@@ -13,6 +14,7 @@ const firebaseConfig = {
   measurementId: "G-MBXY84LFNZ"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
