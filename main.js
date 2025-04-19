@@ -1,7 +1,8 @@
 import { auth, db } from './firebase.js';
 import { 
   onAuthStateChanged, 
-  signOut 
+  signOut,
+  updateProfile
 } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 import { 
   collection, 
@@ -16,13 +17,15 @@ import {
   orderBy,
   onSnapshot,
   updateDoc,
-  arrayUnion
+  arrayUnion,
+  arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
 // DOM Elements
 const contactsList = document.getElementById('contacts-list');
 const searchContactsInput = document.getElementById('search-contacts');
 const currentUserEmail = document.getElementById('current-user-email');
+const currentUserName = document.getElementById('current-user-name');
 const userAvatar = document.getElementById('user-avatar');
 const logoutBtn = document.getElementById('logout-btn');
 const newChatBtn = document.getElementById('new-chat-btn');
@@ -31,6 +34,7 @@ const newChatModal = document.getElementById('new-chat-modal');
 const availableUsersList = document.getElementById('available-users');
 const backToContactsBtn = document.getElementById('back-to-contacts');
 const chatPartnerName = document.getElementById('chat-partner-name');
+const chatPartnerStatus = document.getElementById('chat-partner-status');
 const chatPartnerAvatar = document.getElementById('chat-partner-avatar');
 const chatMessagesContainer = document.getElementById('chat-messages-container');
 const messageInput = document.getElementById('message-input');
@@ -38,12 +42,28 @@ const sendMessageBtn = document.getElementById('send-message-btn');
 const chatUI = document.querySelector('.chat-ui');
 const chatPlaceholder = document.querySelector('.chat-placeholder');
 const appContainer = document.querySelector('.app-container');
+const profileModal = document.getElementById('profile-modal');
+const profileModalClose = document.getElementById('profile-modal-close');
+const profileNameInput = document.getElementById('profile-name-input');
+const profileSaveBtn = document.getElementById('profile-save-btn');
+const profileAvatar = document.getElementById('profile-avatar');
+const profileAvatarInput = document.getElementById('profile-avatar-input');
+const typingIndicator = document.getElementById('typing-indicator');
+const onlineStatusIndicator = document.getElementById('online-status-indicator');
+const lastSeenIndicator = document.getElementById('last-seen-indicator');
 
 // Global variables
 let currentUser = null;
 let contacts = [];
 let currentChatPartner = null;
 let unsubscribeMessages = null;
+let unsubscribeStatus = null;
+let isTyping = false;
+let typingTimeout = null;
+
+// Track unread messages and typing status
+const unreadMessages = {};
+const typingStatus = {};
 
 // Initialize the app
 function initApp() {
@@ -51,7 +71,13 @@ function initApp() {
     if (user) {
       currentUser = user;
       currentUserEmail.textContent = user.email;
-      userAvatar.src = user.photoURL || `https://ui-avatars.com/api/?name=${user.email.split('@')[0]}`;
+      currentUserName.textContent = user.displayName || user.email.split('@')[0];
+      userAvatar.src = user.photoURL || generateAvatar(user.email);
+      profileAvatar.src = user.photoURL || generateAvatar(user.email);
+      profileNameInput.value = user.displayName || '';
+      
+      // Set user as online
+      await updateUserStatus(true);
       
       await loadContacts();
       setupEventListeners();
@@ -63,6 +89,12 @@ function initApp() {
       window.location.href = 'login.html';
     }
   });
+}
+
+// Generate avatar from email
+function generateAvatar(email) {
+  const name = email.split('@')[0];
+  return `https://ui-avatars.com/api/?name=${name}&background=random&color=fff`;
 }
 
 // WhatsApp-like layout functions
@@ -85,14 +117,13 @@ function handleLayoutChange() {
 }
 
 function openChat(partner) {
-  // Unsubscribe from previous chat's messages
-  if (unsubscribeMessages) {
-    unsubscribeMessages();
-  }
+  // Unsubscribe from previous chat's messages and status
+  if (unsubscribeMessages) unsubscribeMessages();
+  if (unsubscribeStatus) unsubscribeStatus();
   
   currentChatPartner = partner;
   chatPartnerName.textContent = partner.displayName || partner.email;
-  chatPartnerAvatar.src = partner.photoURL || `https://ui-avatars.com/api/?name=${partner.email.split('@')[0]}`;
+  chatPartnerAvatar.src = partner.photoURL || generateAvatar(partner.email);
   
   // WhatsApp-like behavior
   if (window.innerWidth <= 768) {
@@ -105,15 +136,20 @@ function openChat(partner) {
   // Load chat messages
   loadChatMessages(partner.uid);
   
-  // Update last seen or online status
+  // Subscribe to partner's status
+  subscribeToPartnerStatus(partner.uid);
+  
+  // Clear unread messages
+  clearUnreadMessages(partner.uid);
+  
+  // Update last seen
   updateUserStatus(true);
 }
 
 function closeChat() {
-  // Unsubscribe from messages when closing chat
-  if (unsubscribeMessages) {
-    unsubscribeMessages();
-  }
+  // Unsubscribe from messages and status when closing chat
+  if (unsubscribeMessages) unsubscribeMessages();
+  if (unsubscribeStatus) unsubscribeStatus();
   
   currentChatPartner = null;
   updateUserStatus(false);
@@ -126,7 +162,48 @@ function closeChat() {
   }
 }
 
-// Update user's online status
+// Subscribe to partner's online status
+function subscribeToPartnerStatus(partnerId) {
+  const partnerRef = doc(db, "users", partnerId);
+  
+  unsubscribeStatus = onSnapshot(partnerRef, (doc) => {
+    if (doc.exists()) {
+      const data = doc.data();
+      const isOnline = data.isOnline;
+      const lastSeen = data.lastSeen;
+      
+      if (isOnline) {
+        chatPartnerStatus.textContent = 'Online';
+        onlineStatusIndicator.style.display = 'inline-block';
+        lastSeenIndicator.style.display = 'none';
+      } else {
+        chatPartnerStatus.textContent = `Last seen ${formatLastSeen(lastSeen)}`;
+        onlineStatusIndicator.style.display = 'none';
+        lastSeenIndicator.style.display = 'inline-block';
+      }
+      
+      // Update typing indicator
+      if (data.typingTo === currentUser.uid) {
+        showTypingIndicator();
+      } else {
+        hideTypingIndicator();
+      }
+    }
+  });
+}
+
+// Show typing indicator
+function showTypingIndicator() {
+  typingIndicator.style.display = 'block';
+  typingIndicator.textContent = `${currentChatPartner.displayName || currentChatPartner.email.split('@')[0]} is typing...`;
+}
+
+// Hide typing indicator
+function hideTypingIndicator() {
+  typingIndicator.style.display = 'none';
+}
+
+// Update user's online status and typing status
 async function updateUserStatus(isOnline) {
   if (!currentUser) return;
   
@@ -134,30 +211,79 @@ async function updateUserStatus(isOnline) {
     const userRef = doc(db, "users", currentUser.uid);
     await updateDoc(userRef, {
       isOnline: isOnline,
-      lastSeen: serverTimestamp()
+      lastSeen: serverTimestamp(),
+      ...(currentChatPartner && isOnline ? { typingTo: null } : {})
     });
   } catch (error) {
     console.error("Error updating user status:", error);
   }
 }
 
+// Update typing status
+async function updateTypingStatus(isTyping) {
+  if (!currentUser || !currentChatPartner) return;
+  
+  try {
+    const userRef = doc(db, "users", currentUser.uid);
+    await updateDoc(userRef, {
+      typingTo: isTyping ? currentChatPartner.uid : null
+    });
+  } catch (error) {
+    console.error("Error updating typing status:", error);
+  }
+}
+
+// Handle typing events
+function handleTyping() {
+  if (!isTyping) {
+    isTyping = true;
+    updateTypingStatus(true);
+  }
+  
+  // Clear previous timeout
+  if (typingTimeout) clearTimeout(typingTimeout);
+  
+  // Set new timeout
+  typingTimeout = setTimeout(() => {
+    isTyping = false;
+    updateTypingStatus(false);
+  }, 2000);
+}
+
 // Load contacts from Firestore
 async function loadContacts() {
   contactsList.innerHTML = '<div class="loading">Loading contacts...</div>';
-  
+
   try {
+    // Get all users except current user
     const q = query(collection(db, "users"), where("email", "!=", currentUser.email));
     const querySnapshot = await getDocs(q);
-    
+
     contacts = [];
     contactsList.innerHTML = '';
-    
-    querySnapshot.forEach((doc) => {
-      const user = { ...doc.data(), uid: doc.id };
+
+    querySnapshot.forEach((userDoc) => {
+      const user = { ...userDoc.data(), uid: userDoc.id };
+
+      // Fetch the last message for this contact
+      const chatRoomId = generateChatRoomId(currentUser.uid, user.uid);
+      const chatRef = doc(db, "chats", chatRoomId);
+
+      getDoc(chatRef).then((chatSnap) => {
+        if (chatSnap.exists()) {
+          const chatData = chatSnap.data();
+          user.lastMessage = chatData.lastMessage || 'No messages yet';
+          user.lastMessageTime = chatData.lastMessageTime;
+        } else {
+          user.lastMessage = 'No messages yet';
+          user.lastMessageTime = null;
+        }
+        renderContact(user);
+      });
+
       contacts.push(user);
-      renderContact(user);
     });
-    
+
     if (contacts.length === 0) {
       contactsList.innerHTML = '<div class="no-contacts">No contacts found</div>';
     }
@@ -167,23 +293,57 @@ async function loadContacts() {
   }
 }
 
+// Generate chat room ID
+function generateChatRoomId(userId1, userId2) {
+  return [userId1, userId2].sort().join('_');
+}
+
 // Render a contact in the sidebar
 function renderContact(user) {
   const contactElement = document.createElement('div');
   contactElement.className = 'contact';
+  contactElement.dataset.uid = user.uid;
+  
+  const lastMessageTime = user.lastMessageTime 
+    ? formatMessageTime(user.lastMessageTime.toDate())
+    : '';
+  
   contactElement.innerHTML = `
-    <img src="${user.photoURL || `https://ui-avatars.com/api/?name=${user.email.split('@')[0]}`}" alt="${user.displayName || user.email}">
+    <img src="${user.photoURL || generateAvatar(user.email)}" alt="${user.displayName || user.email}">
     <div class="contact-info">
       <h3>${user.displayName || user.email}</h3>
-      <p>${user.status || 'Hey there! I am using ChatApp'}</p>
-      <span class="status-indicator ${user.isOnline ? 'online' : 'offline'}">
-        ${user.isOnline ? 'Online' : `Last seen ${formatLastSeen(user.lastSeen)}`}
-      </span>
+      <p id="last-message-${user.uid}">${user.lastMessage || 'No messages yet'}</p>
+    </div>
+    <div class="contact-meta">
+      <span class="message-time">${lastMessageTime}</span>
+      <span id="unread-badge-${user.uid}" class="unread-badge" style="display: none;"></span>
     </div>
   `;
-  
-  contactElement.addEventListener('click', () => openChat(user));
+
+  contactElement.addEventListener('click', () => {
+    openChat(user);
+    clearUnreadMessages(user.uid);
+  });
   contactsList.appendChild(contactElement);
+
+  // Initialize unread badge
+  updateUnreadBadge(user.uid);
+}
+
+// Format message time
+function formatMessageTime(date) {
+  const now = new Date();
+  const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+  
+  if (diffInDays === 0) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } else if (diffInDays === 1) {
+    return 'Yesterday';
+  } else if (diffInDays < 7) {
+    return date.toLocaleDateString([], { weekday: 'short' });
+  } else {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
 }
 
 // Format last seen timestamp
@@ -204,8 +364,8 @@ function formatLastSeen(timestamp) {
 function loadChatMessages(partnerId) {
   chatMessagesContainer.innerHTML = '<div class="loading">Loading messages...</div>';
   
-  // Get the chat room ID (sorted user IDs to ensure consistency)
-  const chatRoomId = [currentUser.uid, partnerId].sort().join('_');
+  // Get the chat room ID
+  const chatRoomId = generateChatRoomId(currentUser.uid, partnerId);
   
   // Reference to the messages subcollection
   const messagesRef = collection(db, "chats", chatRoomId, "messages");
@@ -236,11 +396,14 @@ function loadChatMessages(partnerId) {
 function renderMessage(message, isSent) {
   const messageElement = document.createElement('div');
   messageElement.className = `message ${isSent ? 'sent' : 'received'}`;
+  
+  const messageTime = message.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
   messageElement.innerHTML = `
     <div class="message-content">
       <p>${message.text}</p>
       <span class="message-time">
-        ${message.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        ${messageTime}
         ${isSent ? (message.read ? '✓✓' : '✓') : ''}
       </span>
     </div>
@@ -275,7 +438,7 @@ async function sendMessage() {
   if (!messageText || !currentChatPartner) return;
   
   // Get the chat room ID
-  const chatRoomId = [currentUser.uid, currentChatPartner.uid].sort().join('_');
+  const chatRoomId = generateChatRoomId(currentUser.uid, currentChatPartner.uid);
   
   try {
     // Ensure the chat room exists
@@ -283,7 +446,7 @@ async function sendMessage() {
     const chatSnap = await getDoc(chatRef);
     
     if (!chatSnap.exists()) {
-      // Create the chat room if it doesn't exist
+      // Create the chat room
       await setDoc(chatRef, {
         participants: [currentUser.uid, currentChatPartner.uid],
         createdAt: serverTimestamp(),
@@ -316,11 +479,52 @@ async function sendMessage() {
       read: false
     });
     
+    // Clear input and reset typing status
     messageInput.value = '';
+    isTyping = false;
+    updateTypingStatus(false);
+    
+    // Update last message in contact list
+    updateLastMessageInContact(currentChatPartner.uid, messageText);
   } catch (error) {
     console.error("Error sending message:", error);
-    alert("Failed to send message. Please try again.");
+    showToast("Failed to send message. Please try again.");
   }
+}
+
+// Update last message in contact list
+function updateLastMessageInContact(contactId, message) {
+  const contactElement = contactsList.querySelector(`.contact[data-uid="${contactId}"]`);
+  if (contactElement) {
+    const lastMessageElement = contactElement.querySelector('.contact-info p');
+    if (lastMessageElement) {
+      lastMessageElement.textContent = message;
+    }
+    
+    const messageTimeElement = contactElement.querySelector('.message-time');
+    if (messageTimeElement) {
+      messageTimeElement.textContent = formatMessageTime(new Date());
+    }
+  }
+}
+
+// Show toast notification
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 10);
+  
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      document.body.removeChild(toast);
+    }, 300);
+  }, 3000);
 }
 
 function scrollToBottom() {
@@ -338,16 +542,23 @@ async function showNewChatModal() {
     
     availableUsersList.innerHTML = '';
     
+    if (querySnapshot.empty) {
+      availableUsersList.innerHTML = '<div class="no-users">No other users found</div>';
+      return;
+    }
+    
     querySnapshot.forEach((doc) => {
       const user = { ...doc.data(), uid: doc.id };
       const userElement = document.createElement('div');
       userElement.className = 'user-to-chat';
       userElement.innerHTML = `
-        <img src="${user.photoURL || `https://ui-avatars.com/api/?name=${user.email.split('@')[0]}`}" alt="${user.displayName || user.email}">
-        <span>${user.displayName || user.email}</span>
-        <span class="status-indicator ${user.isOnline ? 'online' : 'offline'}">
-          ${user.isOnline ? 'Online' : 'Offline'}
-        </span>
+        <img src="${user.photoURL || generateAvatar(user.email)}" alt="${user.displayName || user.email}">
+        <div class="user-info">
+          <span>${user.displayName || user.email}</span>
+          <span class="status ${user.isOnline ? 'online' : 'offline'}">
+            ${user.isOnline ? 'Online' : formatLastSeen(user.lastSeen)}
+          </span>
+        </div>
       `;
       userElement.addEventListener('click', () => {
         openChat(user);
@@ -361,14 +572,64 @@ async function showNewChatModal() {
   }
 }
 
+// Profile modal functions
+function showProfileModal() {
+  profileModal.style.display = 'flex';
+}
+
+function closeProfileModal() {
+  profileModal.style.display = 'none';
+}
+
+async function saveProfile() {
+  const newName = profileNameInput.value.trim();
+  
+  try {
+    // Update profile in Firebase Auth
+    await updateProfile(auth.currentUser, {
+      displayName: newName,
+      photoURL: profileAvatar.src
+    });
+    
+    // Update profile in Firestore
+    const userRef = doc(db, "users", currentUser.uid);
+    await updateDoc(userRef, {
+      displayName: newName,
+      photoURL: profileAvatar.src
+    });
+    
+    // Update UI
+    currentUserName.textContent = newName;
+    userAvatar.src = profileAvatar.src;
+    
+    showToast("Profile updated successfully");
+    closeProfileModal();
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    showToast("Failed to update profile");
+  }
+}
+
+// Handle avatar upload
+function handleAvatarUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    profileAvatar.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 // Search contacts
 function setupSearch() {
   searchContactsInput.addEventListener('input', (e) => {
     const searchTerm = e.target.value.toLowerCase();
     const filteredContacts = contacts.filter(contact => 
       (contact.displayName?.toLowerCase().includes(searchTerm) || 
-      contact.email.toLowerCase().includes(searchTerm))
-    );
+      contact.email.toLowerCase().includes(searchTerm)
+    ));
     
     contactsList.innerHTML = '';
     
@@ -381,6 +642,30 @@ function setupSearch() {
   });
 }
 
+// Track unread messages
+function incrementUnreadMessages(contactId) {
+  if (!unreadMessages[contactId]) {
+    unreadMessages[contactId] = 0;
+  }
+  unreadMessages[contactId]++;
+  updateUnreadBadge(contactId);
+}
+
+function clearUnreadMessages(contactId) {
+  unreadMessages[contactId] = 0;
+  updateUnreadBadge(contactId);
+}
+
+function updateUnreadBadge(contactId) {
+  const badge = document.getElementById(`unread-badge-${contactId}`);
+  if (unreadMessages[contactId] > 0) {
+    badge.textContent = unreadMessages[contactId];
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
 // Event listeners
 function setupEventListeners() {
   setupSearch();
@@ -391,19 +676,44 @@ function setupEventListeners() {
   backToContactsBtn.addEventListener('click', closeChat);
   logoutBtn.addEventListener('click', logout);
   sendMessageBtn.addEventListener('click', sendMessage);
+  userAvatar.addEventListener('click', showProfileModal);
+  profileModalClose.addEventListener('click', closeProfileModal);
+  profileSaveBtn.addEventListener('click', saveProfile);
+  profileAvatarInput.addEventListener('change', handleAvatarUpload);
   
   // Send message on Enter key
   messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
       sendMessage();
     }
   });
   
-  // Close modal when clicking outside
-  window.addEventListener('click', (e) => {
-    if (e.target === newChatModal) {
-      newChatModal.style.display = 'none';
+  // Typing indicator
+  messageInput.addEventListener('input', () => {
+    if (messageInput.value.trim().length > 0) {
+      handleTyping();
     }
+  });
+  
+  // Close modals when clicking outside
+  window.addEventListener('click', (e) => {
+    if (e.target === newChatModal) newChatModal.style.display = 'none';
+    if (e.target === profileModal) closeProfileModal();
+  });
+}
+
+// Subscribe to messages
+function subscribeToMessages(chatRoomId) {
+  const messagesRef = collection(db, 'chats', chatRoomId, 'messages');
+  const messagesQuery = query(messagesRef, orderBy('timestamp', 'asc')); // Order by timestamp
+
+  onSnapshot(messagesQuery, (snapshot) => {
+    chatMessagesContainer.innerHTML = ''; // Clear the container before rendering
+    snapshot.forEach((doc) => {
+      const message = doc.data();
+      renderMessage(message); // Render each message
+    });
   });
 }
 
@@ -416,7 +726,7 @@ async function logout() {
     window.location.href = 'login.html';
   } catch (error) {
     console.error("Logout error:", error);
-    alert("Failed to logout: " + error.message);
+    showToast("Failed to logout");
   }
 }
 

@@ -4,15 +4,92 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login</title>
-  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .auth-container {
+      background-color: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .auth-form h2 {
+      margin-bottom: 0.5rem;
+      font-size: 1.8rem;
+      color: #333;
+    }
+
+    .auth-form p {
+      margin-bottom: 1.5rem;
+      color: #666;
+    }
+
+    .auth-form input {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+
+    .auth-form button {
+      width: 100%;
+      padding: 0.75rem;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .auth-form button:hover {
+      background-color: #0056b3;
+    }
+
+    .auth-switch {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .auth-switch a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    .auth-switch a:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
 <body>
-  <div class="auth-form">
-    <h2>Login</h2>
-    <input type="email" id="login-email" placeholder="Email" required>
-    <input type="password" id="login-password" placeholder="Password" required>
-    <button onclick="login()">Login</button>
-    <p>Don't have an account? <a href="signup.html">Sign Up</a></p>
+  <div class="auth-container">
+    <div class="auth-form">
+      <h2>Welcome Back</h2>
+      <p>Login to your account</p>
+      <input type="email" id="login-email" placeholder="Email" required>
+      <input type="password" id="login-password" placeholder="Password" required>
+      <button onclick="login()">Login</button>
+      <p class="auth-switch">
+        Don't have an account? <a href="signup.html">Sign Up</a>
+      </p>
+    </div>
   </div>
   <script type="module" src="login.js"></script>
 </body>
