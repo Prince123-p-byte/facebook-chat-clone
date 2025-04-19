@@ -19,6 +19,13 @@ let editingMessageId = null;
 const urlParams = new URLSearchParams(window.location.search);
 const partnerId = urlParams.get('userId');
 
+// DOM elements
+const messagesContainer = document.getElementById('chat-container');
+const messageInput = document.getElementById('message-input');
+const chatPartnerName = document.getElementById('chat-partner-name');
+const chatPartnerAvatar = document.getElementById('chat-partner-avatar');
+const onlineStatusElement = document.querySelector('.online-status');
+
 // Initialize chat when page loads
 document.addEventListener('DOMContentLoaded', () => {
   onAuthStateChanged(auth, async (user) => {
@@ -39,13 +46,29 @@ async function initializeChat() {
     // Get partner info
     const partnerRef = doc(db, "users", partnerId);
     const partnerSnap = await getDoc(partnerRef);
+    
     if (!partnerSnap.exists()) {
       throw new Error("User not found");
     }
     
     chatPartner = partnerSnap.data();
-    document.getElementById('chat-partner-name').textContent = 
-      chatPartner.displayName || chatPartner.email.split('@')[0];
+    chatPartnerName.textContent = chatPartner.displayName || chatPartner.email.split('@')[0];
+    
+    // Set avatar (using UI Avatars API as fallback)
+    if (chatPartner.photoURL) {
+      chatPartnerAvatar.src = chatPartner.photoURL;
+    } else {
+      const nameForAvatar = chatPartner.displayName || chatPartner.email.split('@')[0];
+      chatPartnerAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameForAvatar)}&background=random`;
+    }
+    
+    // Set online status
+    if (chatPartner.isOnline) {
+      onlineStatusElement.innerHTML = '<span class="online-dot"></span> Online';
+    } else {
+      onlineStatusElement.innerHTML = '<span class="offline-dot"></span> Offline';
+      onlineStatusElement.classList.add('offline');
+    }
     
     // Find existing chat between users
     const chatsQuery = query(
@@ -70,7 +93,8 @@ async function initializeChat() {
         participants: [currentUser.uid, partnerId],
         createdAt: serverTimestamp(),
         lastMessage: "",
-        lastMessageTime: null
+        lastMessageTime: null,
+        lastMessageSender: ""
       };
       
       const docRef = await addDoc(collection(db, "chats"), newChat);
@@ -78,13 +102,12 @@ async function initializeChat() {
     }
   } catch (error) {
     console.error("Chat initialization error:", error);
-    alert("Failed to start chat: " + error.message);
+    showError("Failed to start chat: " + error.message);
   }
 }
 
 // Load and display messages in real-time
 function loadMessages() {
-  const messagesContainer = document.getElementById('chat-container');
   messagesContainer.innerHTML = '<div class="loading">Loading messages...</div>';
   
   const messagesQuery = query(
@@ -103,13 +126,12 @@ function loadMessages() {
     });
     
     // Scroll to latest message
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    scrollToBottom();
   });
 }
 
 // Display a message in the chat UI
 function displayMessage(message) {
-  const messagesContainer = document.getElementById('chat-container');
   const isCurrentUser = message.senderId === currentUser.uid;
   
   const messageElement = document.createElement('div');
@@ -156,8 +178,7 @@ function displayMessage(message) {
 
 // Send a new message
 window.sendMessage = async function() {
-  const input = document.getElementById('message-input');
-  const content = input.value.trim();
+  const content = messageInput.value.trim();
   
   if (!content) return;
   
@@ -169,30 +190,31 @@ window.sendMessage = async function() {
         edited: true,
         lastUpdated: serverTimestamp()
       });
-      editingMessageId = null;
-      input.value = '';
-      document.querySelector('.editing-indicator')?.remove();
+      cancelEditing();
     } else {
       // Send new message
-      const messageRef = await addDoc(collection(db, "chats", currentChatId, "messages"), {
+      const newMessage = {
         id: Date.now().toString(),
         senderId: currentUser.uid,
         content: content,
         type: 'text',
         timestamp: serverTimestamp()
-      });
+      };
+      
+      await addDoc(collection(db, "chats", currentChatId, "messages"), newMessage);
       
       // Update chat last message
       await updateDoc(doc(db, "chats", currentChatId), {
         lastMessage: content,
-        lastMessageTime: serverTimestamp()
+        lastMessageTime: serverTimestamp(),
+        lastMessageSender: currentUser.uid
       });
     }
     
-    input.value = '';
+    messageInput.value = '';
   } catch (error) {
     console.error("Error sending message:", error);
-    alert("Failed to send message: " + error.message);
+    showError("Failed to send message");
   }
 };
 
@@ -209,16 +231,15 @@ window.deleteMessage = async function(messageId) {
     });
   } catch (error) {
     console.error("Error deleting message:", error);
-    alert("Failed to delete message: " + error.message);
+    showError("Failed to delete message");
   }
 };
 
 // Start editing a message
 window.startEditingMessage = function(messageId, currentContent) {
   editingMessageId = messageId;
-  const input = document.getElementById('message-input');
-  input.value = currentContent;
-  input.focus();
+  messageInput.value = currentContent;
+  messageInput.focus();
   
   // Show editing indicator
   const indicator = document.createElement('div');
@@ -227,12 +248,18 @@ window.startEditingMessage = function(messageId, currentContent) {
   document.querySelector('.message-input-container').prepend(indicator);
 };
 
+// Cancel editing mode
+function cancelEditing() {
+  editingMessageId = null;
+  messageInput.value = '';
+  const indicator = document.querySelector('.editing-indicator');
+  if (indicator) indicator.remove();
+}
+
 // Setup event listeners
 function setupEventListeners() {
-  const input = document.getElementById('message-input');
-  
   // Send message on Enter key
-  input.addEventListener('keypress', (e) => {
+  messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -240,13 +267,21 @@ function setupEventListeners() {
   });
   
   // Cancel editing on Escape
-  input.addEventListener('keydown', (e) => {
+  messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && editingMessageId) {
       e.preventDefault();
-      editingMessageId = null;
-      input.value = '';
-      document.querySelector('.editing-indicator')?.remove();
+      cancelEditing();
     }
+  });
+  
+  // Typing indicator (simplified version)
+  let typingTimeout;
+  messageInput.addEventListener('input', () => {
+    // In a real app, you would send a "typing" status to the other user
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      // Typing stopped
+    }, 1000);
   });
 }
 
@@ -266,17 +301,74 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
+// Scroll to bottom of chat
+function scrollToBottom() {
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Show error message
+function showError(message) {
+  const errorElement = document.createElement('div');
+  errorElement.className = 'error-message';
+  errorElement.textContent = message;
+  messagesContainer.appendChild(errorElement);
+  setTimeout(() => errorElement.remove(), 3000);
+}
+
 // Back to contacts list
 window.goBack = function() {
   window.location.href = 'index.html';
 };
 
-// Logout function
-window.logout = function() {
-  signOut(auth).then(() => {
-    window.location.href = 'login.html';
-  }).catch((error) => {
-    console.error("Logout error:", error);
-    alert("Failed to logout: " + error.message);
-  });
+// Show chat options menu
+window.showChatOptions = function() {
+  const menu = document.getElementById('chat-options-menu');
+  menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+};
+
+// Clear chat history
+window.clearChatHistory = async function() {
+  if (!confirm("Are you sure you want to clear all chat history?")) return;
+  
+  try {
+    // Get all messages in the chat
+    const messagesQuery = query(collection(db, "chats", currentChatId, "messages"));
+    const querySnapshot = await getDocs(messagesQuery);
+    
+    // Mark all as deleted
+    const batch = writeBatch(db);
+    querySnapshot.forEach((doc) => {
+      const messageRef = doc.ref;
+      batch.update(messageRef, {
+        deleted: true,
+        content: "[Message deleted]",
+        lastUpdated: serverTimestamp()
+      });
+    });
+    
+    await batch.commit();
+    
+    // Update chat last message
+    await updateDoc(doc(db, "chats", currentChatId), {
+      lastMessage: "[Chat cleared]",
+      lastMessageTime: serverTimestamp(),
+      lastMessageSender: ""
+    });
+    
+    showChatOptions(); // Hide the menu
+  } catch (error) {
+    console.error("Error clearing chat:", error);
+    showError("Failed to clear chat");
+  }
+};
+
+// Mute chat notifications
+window.muteChat = function() {
+  alert("Chat notifications would be muted here");
+  showChatOptions(); // Hide the menu
+};
+
+// Toggle emoji picker (placeholder)
+window.toggleEmojiPicker = function() {
+  alert("Emoji picker would appear here in a full implementation");
 };

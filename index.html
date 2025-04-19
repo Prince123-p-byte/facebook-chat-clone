@@ -3,86 +3,117 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Messages | ChatApp</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>WhatsApp Clone</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app-container">
-    <!-- Left Sidebar -->
-    <aside class="sidebar">
-      <header class="sidebar-header">
-        <div class="user-profile">
-          <img src="https://ui-avatars.com/api/?name=User&background=random" alt="Profile">
-          <h3>Your Profile</h3>
-        </div>
-        <button class="btn-icon" onclick="logout()">
+    <!-- Contacts Sidebar -->
+    <div class="sidebar">
+      <div class="header">
+        <button class="btn-icon" id="logout-btn">
           <i class="fas fa-sign-out-alt"></i>
         </button>
-      </header>
-      
-      <div class="sidebar-search">
-        <i class="fas fa-search"></i>
-        <input type="text" placeholder="Search messages">
+        <h1 class="header-title">Chats</h1>
+        <button class="btn-icon" id="new-chat-btn">
+          <i class="fas fa-edit"></i>
+        </button>
       </div>
       
-      <nav class="sidebar-nav">
-        <button class="active"><i class="fas fa-inbox"></i> Inbox</button>
-        <button><i class="fas fa-user-friends"></i> Friends</button>
-        <button><i class="fas fa-bookmark"></i> Saved</button>
-      </nav>
-    </aside>
-    
-    <!-- Main Content -->
-    <main class="main-content">
-      <header class="content-header">
-        <h2><i class="fas fa-inbox"></i> Messages</h2>
-        <button class="btn-new-chat" onclick="showNewChatModal()">
-          <i class="fas fa-plus"></i> New Chat
-        </button>
-      </header>
+      <div class="search-container">
+        <i class="fas fa-search"></i>
+        <input type="text" id="search-contacts" placeholder="Search contacts...">
+      </div>
       
-      <div class="chats-list">
-        <!-- Chats will be loaded here dynamically -->
-        <div class="loading-chats">
-          <i class="fas fa-spinner fa-spin"></i> Loading conversations...
+      <div id="contacts-list" class="contacts-list">
+        <div class="loading">Loading contacts...</div>
+      </div>
+      
+      <div class="current-user" id="current-user-profile">
+        <img id="user-avatar" src="https://ui-avatars.com/api/?name=User" alt="Profile">
+        <div class="current-user-info">
+          <h3 id="current-user-email">user@example.com</h3>
+          <p>Online</p>
         </div>
       </div>
-    </main>
+    </div>
+    
+    <!-- Chat Area -->
+    <div id="chat-container" class="chat-container">
+      <div class="chat-placeholder">
+        <div class="placeholder-content">
+          <i class="fas fa-comments"></i>
+          <h2>Select a chat to start messaging</h2>
+          <p>Choose a contact from your list to begin your conversation</p>
+        </div>
+      </div>
+      
+      <div class="chat-ui" style="display: none;">
+        <header class="chat-header">
+          <button class="back-button" id="back-to-contacts">
+            <i class="fas fa-arrow-left"></i>
+          </button>
+          
+          <div class="chat-partner-info">
+            <img id="chat-partner-avatar" src="https://ui-avatars.com/api/?name=User" alt="Profile">
+            <div>
+              <h2 id="chat-partner-name">Contact Name</h2>
+              <p class="online-status">Online</p>
+            </div>
+          </div>
+          
+          <div class="chat-actions">
+            <button class="btn-icon" id="chat-options-btn">
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
+          </div>
+        </header>
+        
+        <main class="chat-main">
+          <div id="chat-messages-container" class="chat-messages-container">
+            <!-- Messages will appear here -->
+          </div>
+        </main>
+        
+        <footer class="chat-footer">
+          <div class="message-input-container">
+            <button class="btn-icon emoji-btn">
+              <i class="far fa-smile"></i>
+            </button>
+            
+            <div class="message-input-wrapper">
+              <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off">
+            </div>
+            
+            <button class="btn-icon send-btn" id="send-message-btn">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+        </footer>
+      </div>
+    </div>
   </div>
-  
+
   <!-- New Chat Modal -->
   <div id="new-chat-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>New Message</h3>
-        <button class="btn-icon" onclick="hideModal('new-chat-modal')">
+        <h3>New Chat</h3>
+        <button class="modal-close" id="close-modal-btn">
           <i class="fas fa-times"></i>
         </button>
       </div>
       <div class="modal-search">
         <i class="fas fa-search"></i>
-        <input type="text" placeholder="Search people" id="search-contacts">
+        <input type="text" id="search-users" placeholder="Search users...">
       </div>
-      <div class="modal-body" id="available-users">
-        <!-- Users will be loaded here -->
-        <div class="loading-users">
-          <i class="fas fa-spinner fa-spin"></i> Loading contacts...
-        </div>
+      <div id="available-users" class="modal-body">
+        <div class="loading">Loading users...</div>
       </div>
     </div>
   </div>
 
   <script type="module" src="main.js"></script>
-  <script>
-    function showNewChatModal() {
-      document.getElementById('new-chat-modal').style.display = 'flex';
-      document.getElementById('search-contacts').focus();
-    }
-    
-    function hideModal(modalId) {
-      document.getElementById(modalId).style.display = 'none';
-    }
-  </script>
 </body>
 </html>
