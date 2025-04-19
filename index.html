@@ -1,42 +1,88 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Chat App - Contacts</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messages | ChatApp</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
   <div class="app-container">
-    <header>
-      <h1>Chat App</h1>
-      <div class="user-controls">
-        <span id="current-user"></span>
-        <button onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+    <!-- Left Sidebar -->
+    <aside class="sidebar">
+      <header class="sidebar-header">
+        <div class="user-profile">
+          <img src="https://ui-avatars.com/api/?name=User&background=random" alt="Profile">
+          <h3>Your Profile</h3>
+        </div>
+        <button class="btn-icon" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </header>
+      
+      <div class="sidebar-search">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Search messages">
       </div>
-    </header>
+      
+      <nav class="sidebar-nav">
+        <button class="active"><i class="fas fa-inbox"></i> Inbox</button>
+        <button><i class="fas fa-user-friends"></i> Friends</button>
+        <button><i class="fas fa-bookmark"></i> Saved</button>
+      </nav>
+    </aside>
     
-    <div class="search-container">
-      <input type="text" id="search-contacts" placeholder="Search contacts...">
-    </div>
-    
-    <div class="contacts-list" id="contacts-list">
-      <!-- Contacts will be loaded here -->
-    </div>
-    
-    <div class="new-chat-button">
-      <button onclick="showNewChatModal()"><i class="fas fa-plus"></i> New Chat</button>
-    </div>
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="content-header">
+        <h2><i class="fas fa-inbox"></i> Messages</h2>
+        <button class="btn-new-chat" onclick="showNewChatModal()">
+          <i class="fas fa-plus"></i> New Chat
+        </button>
+      </header>
+      
+      <div class="chats-list">
+        <!-- Chats will be loaded here dynamically -->
+        <div class="loading-chats">
+          <i class="fas fa-spinner fa-spin"></i> Loading conversations...
+        </div>
+      </div>
+    </main>
   </div>
   
   <!-- New Chat Modal -->
   <div id="new-chat-modal" class="modal">
     <div class="modal-content">
-      <span class="close-modal" onclick="hideModal('new-chat-modal')">&times;</span>
-      <h2>Start New Chat</h2>
-      <div id="available-users"></div>
+      <div class="modal-header">
+        <h3>New Message</h3>
+        <button class="btn-icon" onclick="hideModal('new-chat-modal')">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-search">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Search people" id="search-contacts">
+      </div>
+      <div class="modal-body" id="available-users">
+        <!-- Users will be loaded here -->
+        <div class="loading-users">
+          <i class="fas fa-spinner fa-spin"></i> Loading contacts...
+        </div>
+      </div>
     </div>
   </div>
-  
+
   <script type="module" src="main.js"></script>
+  <script>
+    function showNewChatModal() {
+      document.getElementById('new-chat-modal').style.display = 'flex';
+      document.getElementById('search-contacts').focus();
+    }
+    
+    function hideModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+  </script>
 </body>
 </html>
