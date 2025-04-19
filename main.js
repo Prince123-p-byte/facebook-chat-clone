@@ -360,55 +360,74 @@ function formatLastSeen(timestamp) {
   return `${Math.floor(diffInSeconds / 86400)} days ago`;
 }
 
-// Load messages for a specific chat
+// Function to load chat messages
 function loadChatMessages(partnerId) {
-  chatMessagesContainer.innerHTML = '<div class="loading">Loading messages...</div>';
-  
-  // Get the chat room ID
-  const chatRoomId = generateChatRoomId(currentUser.uid, partnerId);
-  
-  // Reference to the messages subcollection
-  const messagesRef = collection(db, "chats", chatRoomId, "messages");
-  
-  // Query messages ordered by timestamp
-  const q = query(messagesRef, orderBy("timestamp"));
-  
-  // Set up real-time listener
-  unsubscribeMessages = onSnapshot(q, (querySnapshot) => {
+  // Clear existing messages with a fade-out effect
+  chatMessagesContainer.style.opacity = '0';
+  setTimeout(() => {
     chatMessagesContainer.innerHTML = '';
-    
-    querySnapshot.forEach((doc) => {
-      const message = doc.data();
-      renderMessage(message, message.senderId === currentUser.uid);
+    chatMessagesContainer.style.opacity = '1';
+  }, 150);
+
+  const chatRoomId = generateChatRoomId(currentUser.uid, partnerId);
+  const messagesRef = collection(db, "chats", chatRoomId, "messages");
+  const q = query(messagesRef, orderBy("timestamp"));
+
+  // Use a flag to prevent duplicate renders
+  let isRendering = false;
+
+  unsubscribeMessages = onSnapshot(q, (querySnapshot) => {
+    if (isRendering) return;
+    isRendering = true;
+
+    const changes = querySnapshot.docChanges();
+    changes.forEach((change) => {
+      if (change.type === 'added') {
+        renderMessage(change.doc.data(), change.doc.data().senderId === currentUser.uid);
+      }
     });
-    
+
     scrollToBottom();
-    
-    // Mark messages as read
-    markMessagesAsRead(chatRoomId);
-  }, (error) => {
-    console.error("Error loading messages:", error);
-    chatMessagesContainer.innerHTML = '<div class="error">Failed to load messages</div>';
+    isRendering = false;
   });
 }
 
-// Render a single message
+// Enhanced renderMessage function
 function renderMessage(message, isSent) {
-  const messageElement = document.createElement('div');
-  messageElement.className = `message ${isSent ? 'sent' : 'received'}`;
-  
-  const messageTime = message.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  
-  messageElement.innerHTML = `
-    <div class="message-content">
-      <p>${message.text}</p>
-      <span class="message-time">
-        ${messageTime}
-        ${isSent ? (message.read ? '✓✓' : '✓') : ''}
-      </span>
-    </div>
-  `;
-  chatMessagesContainer.appendChild(messageElement);
+  // Use requestAnimationFrame for smoother rendering
+  requestAnimationFrame(() => {
+    const messageElement = document.createElement('div');
+    messageElement.className = `message ${isSent ? 'sent' : 'received'}`;
+    
+    // Use document fragment to minimize reflows
+    const fragment = document.createDocumentFragment();
+    const messageContent = document.createElement('div');
+    messageContent.className = 'message-content';
+    
+    // Batch DOM updates
+    const messageText = document.createElement('p');
+    messageText.textContent = message.text;
+    
+    const messageTime = document.createElement('span');
+    messageTime.className = 'message-time';
+    messageTime.textContent = message.timestamp?.toDate().toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    if (isSent) {
+      const readReceipt = document.createElement('span');
+      readReceipt.textContent = message.read ? '✓✓' : '✓';
+      messageTime.appendChild(readReceipt);
+    }
+    
+    messageContent.appendChild(messageText);
+    messageContent.appendChild(messageTime);
+    messageElement.appendChild(messageContent);
+    fragment.appendChild(messageElement);
+    
+    chatMessagesContainer.appendChild(fragment);
+  });
 }
 
 // Mark messages as read
@@ -527,8 +546,19 @@ function showToast(message) {
   }, 3000);
 }
 
+// Enhanced scrollToBottom function
 function scrollToBottom() {
-  chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+  requestAnimationFrame(() => {
+    const container = chatMessagesContainer;
+    const isNearBottom = container.scrollHeight - container.clientHeight - container.scrollTop < 100;
+    
+    if (isNearBottom) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  });
 }
 
 // New chat modal functions

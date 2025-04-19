@@ -359,6 +359,10 @@ body {
   flex-direction: column;
   gap: 0.5rem;
   padding-bottom: 1rem;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  contain: content;
 }
 
 .message {
@@ -366,11 +370,25 @@ body {
   display: flex;
   flex-direction: column;
   animation: fadeIn 0.3s ease;
+  transform: translateZ(0);
+  will-change: opacity, transform;
+  animation: messageAppear 0.2s ease-out forwards;
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes messageAppear {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .message.sent {
@@ -386,6 +404,10 @@ body {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   position: relative;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .message.sent .message-content {
